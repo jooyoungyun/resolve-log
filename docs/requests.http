@@ -1,0 +1,67 @@
+# IntelliJ HTTP Client: 위에서부터 한 요청씩 실행합니다.
+# 가입 요청을 다시 실행하면 새 테스트 계정이 생성됩니다.
+@baseUrl = http://localhost:8080
+
+### 1. API 상태
+GET {{baseUrl}}/actuator/health
+
+### 2. 회원가입 및 토큰 저장
+< {%
+  client.global.set("email", "resolve-" + Date.now() + "@example.com");
+  client.global.set("today", new Intl.DateTimeFormat("en-CA", {timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit"}).format(new Date()));
+%}
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{"email":"{{email}}","displayName":"나의 기록장","password":"ResolveLocal2026!"}
+
+> {% client.global.set("token", response.body.accessToken); %}
+
+### 3. 로그인
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{"email":"{{email}}","password":"ResolveLocal2026!"}
+
+> {% client.global.set("token", response.body.accessToken); %}
+
+### 4. 내 정보
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### 5. 결심 만들기
+POST {{baseUrl}}/api/goals
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"title":"하루 30분 산책","reason":"나를 돌보는 시간","category":"HEALTH","startDate":"{{today}}","endDate":null,"weekdays":[1,2,3,4,5,6,7],"archived":false}
+
+> {% client.global.set("goalId", response.body.id); client.global.set("version", response.body.version); %}
+
+### 6. 오늘 일지 저장 (다시 호출하면 수정)
+PUT {{baseUrl}}/api/goals/{{goalId}}/entries/{{today}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"status":"DONE","note":"산책하며 하루를 돌아보았다.","minutes":30}
+
+### 7. 대시보드
+GET {{baseUrl}}/api/dashboard?date={{today}}
+Authorization: Bearer {{token}}
+
+### 8. 기록 조회
+GET {{baseUrl}}/api/entries?from={{today}}&to={{today}}&page=1&size=20
+Authorization: Bearer {{token}}
+
+### 9. 결심 보관 (이후 새로운 일지는 추가할 수 없음)
+PUT {{baseUrl}}/api/goals/{{goalId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"title":"하루 30분 산책","reason":"나를 돌보는 시간","category":"HEALTH","startDate":"{{today}}","endDate":null,"weekdays":[1,2,3,4,5,6,7],"archived":true,"version":{{version}}}
+
+> {% client.global.set("version", response.body.version); %}
+
+### 10. 테스트 결심과 관련 일지 삭제
+DELETE {{baseUrl}}/api/goals/{{goalId}}
+Authorization: Bearer {{token}}

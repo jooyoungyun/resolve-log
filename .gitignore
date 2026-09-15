@@ -1,0 +1,14 @@
+node_modules/
+.nuxt/
+.output/
+target/
+.idea/
+*.iml
+.env
+frontend/playwright-report/
+frontend/test-results/
+.env.local
+*.log
+.DS_Store
+test-results/
+playwright-report/

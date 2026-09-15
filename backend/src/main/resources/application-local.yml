@@ -1,0 +1,4 @@
+# Local workstation only. The docker profile requires JWT_SECRET from Compose.
+app:
+  jwt-secret: ${JWT_SECRET:resolve-log-local-development-secret-change-before-publishing-2026}
+

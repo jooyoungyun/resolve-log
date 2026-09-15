@@ -1,0 +1,88 @@
+name: resolve-log
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-resolve_log}
+      POSTGRES_USER: ${POSTGRES_USER:-resolve_log}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-resolve_log_local}
+      TZ: Asia/Seoul
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    image: resolve-log-api:1.0.0
+    build:
+      context: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-resolve_log}
+      POSTGRES_USER: ${POSTGRES_USER:-resolve_log}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-resolve_log_local}
+      JWT_SECRET: ${JWT_SECRET:-resolve-log-local-development-secret-change-before-publishing-2026}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Seoul}
+      BACKEND_PORT: "8080"
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3300}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    restart: unless-stopped
+
+  frontend:
+    image: resolve-log-web:1.0.0
+    build:
+      context: ./frontend
+    environment:
+      NODE_ENV: production
+      NITRO_HOST: 0.0.0.0
+      NITRO_PORT: "3000"
+      NUXT_API_BASE: http://backend:8080
+      NUXT_PUBLIC_TIMEZONE: ${APP_TIMEZONE:-Asia/Seoul}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3300}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  postgres-test:
+    image: postgres:17-alpine
+    profiles: [test]
+    environment:
+      POSTGRES_DB: resolve_log_test
+      POSTGRES_USER: resolve_log_test
+      POSTGRES_PASSWORD: resolve_log_test
+    ports:
+      - "127.0.0.1:5434:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resolve_log_test -d resolve_log_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres_data:
+

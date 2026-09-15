@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: resolve-log-api
+  profiles:
+    default: local
+  config:
+    import: optional:file:../.env[.properties],optional:file:./.env[.properties]
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/resolve_log}
+    username: ${POSTGRES_USER:resolve_log}
+    password: ${POSTGRES_PASSWORD:resolve_log_local}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        default_batch_fetch_size: 64
+  flyway:
+    enabled: true
+server:
+  port: ${BACKEND_PORT:8080}
+  error:
+    include-message: never
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+app:
+  timezone: ${APP_TIMEZONE:Asia/Seoul}
+  jwt-secret: ${JWT_SECRET}
+  token-hours: 8
+  allowed-origins: ${FRONTEND_ORIGIN:http://localhost:3300}
+
